@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0D0D0D">
+<title>MyPlanner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D0D0D;
+  --surface: #161616;
+  --surface2: #1E1E1E;
+  --surface3: #262626;
+  --border: #2A2A2A;
+  --accent: #E8FF47;
+  --accent2: #47FFD4;
+  --accent3: #FF6B47;
+  --text: #F0F0F0;
+  --text2: #888;
+  --text3: #555;
+  --danger: #FF4747;
+  --success: #47FF8A;
+  --warn: #FFB347;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Noto Sans KR',sans-serif; overflow:hidden; }
+
+/* LAYOUT */
+#app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+#header { padding:16px 20px 12px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+#header-top { display:flex; align-items:center; justify-content:space-between; }
+.app-logo { font-family:'Space Mono',monospace; font-size:18px; color:var(--accent); letter-spacing:-1px; }
+.header-date { font-size:12px; color:var(--text2); margin-top:4px; }
+.badge-row { display:flex; gap:8px; margin-top:8px; }
+.badge { font-size:11px; padding:3px 8px; border-radius:20px; background:var(--surface3); color:var(--text2); border:1px solid var(--border); }
+.badge.warn { background:#2A1F00; color:var(--warn); border-color:#3A2D00; }
+.badge.danger { background:#2A0000; color:var(--danger); border-color:#3A1010; }
+
+#content { flex:1; overflow-y:auto; overflow-x:hidden; padding:16px; padding-bottom:80px; }
+#navbar { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:100; }
+.nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; padding:10px 4px 14px; gap:4px; background:none; border:none; color:var(--text3); font-family:'Noto Sans KR',sans-serif; font-size:10px; cursor:pointer; transition:color .2s; position:relative; }
+.nav-btn.active { color:var(--accent); }
+.nav-btn svg { width:22px; height:22px; }
+.nav-dot { position:absolute; top:8px; right:calc(50% - 16px); width:6px; height:6px; background:var(--danger); border-radius:50%; }
+
+/* SECTIONS */
+.section { display:none; }
+.section.active { display:block; }
+
+/* CARDS */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; }
+.card-title { font-size:13px; color:var(--text2); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.card-title span { width:6px; height:6px; border-radius:50%; background:var(--accent); display:inline-block; }
+
+/* TODAY TASKS */
+.task-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+.task-item:last-child { border-bottom:none; }
+.task-check { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:.2s; }
+.task-check.done { background:var(--accent); border-color:var(--accent); }
+.task-check.done svg { display:block; }
+.task-check svg { display:none; width:12px; height:12px; }
+.task-text { flex:1; font-size:14px; }
+.task-text.done { text-decoration:line-through; color:var(--text3); }
+.task-time { font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; }
+.task-cat { font-size:10px; padding:2px 6px; border-radius:10px; background:var(--surface3); }
+.task-carry { font-size:10px; color:var(--warn); padding:2px 6px; background:#2A1F00; border-radius:10px; }
+
+/* ADD BTN */
+.fab { position:fixed; bottom:80px; right:20px; width:52px; height:52px; background:var(--accent); border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(232,255,71,.3); z-index:99; transition:transform .15s; }
+.fab:active { transform:scale(.93); }
+.fab svg { width:24px; height:24px; color:#000; }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay.open { opacity:1; pointer-events:all; }
+.modal { background:var(--surface); border-radius:20px 20px 0 0; width:100%; padding:20px; max-height:90vh; overflow-y:auto; transform:translateY(100%); transition:transform .3s cubic-bezier(.32,.72,0,1); }
+.modal-overlay.open .modal { transform:translateY(0); }
+.modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:16px; }
+
+/* FORM */
+.form-group { margin-bottom:14px; }
+.form-label { font-size:12px; color:var(--text2); margin-bottom:6px; display:block; }
+.form-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; color:var(--text); font-family:'Noto Sans KR',sans-serif; font-size:14px; outline:none; }
+.form-input:focus { border-color:var(--accent); }
+.form-select { appearance:none; -webkit-appearance:none; cursor:pointer; }
+.form-row { display:flex; gap:8px; }
+.form-row .form-group { flex:1; }
+.btn-row { display:flex; gap:8px; margin-top:16px; }
+.btn { flex:1; padding:12px; border-radius:var(--radius-sm); border:none; font-family:'Noto Sans KR',sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:.15s; }
+.btn-primary { background:var(--accent); color:#000; }
+.btn-secondary { background:var(--surface3); color:var(--text); border:1px solid var(--border); }
+.btn:active { transform:scale(.97); }
+
+/* CALENDAR */
+.cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.cal-nav { background:none; border:none; color:var(--text2); cursor:pointer; padding:6px; }
+.cal-title { font-size:15px; font-weight:700; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-day-name { text-align:center; font-size:11px; color:var(--text3); padding:4px 0; }
+.cal-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:13px; cursor:pointer; position:relative; flex-direction:column; gap:1px; }
+.cal-cell.other-month { color:var(--text3); }
+.cal-cell.today { background:var(--accent); color:#000; font-weight:700; }
+.cal-cell.selected:not(.today) { background:var(--surface3); }
+.cal-cell.has-event::after { content:''; width:4px; height:4px; background:var(--accent2); border-radius:50%; position:absolute; bottom:3px; }
+.cal-cell.today.has-event::after { background:#000; }
+.cal-cell.sunday { color:var(--danger); }
+.cal-cell.saturday { color:#6B8EFF; }
+.cal-cell.today.sunday,.cal-cell.today.saturday { color:#000; }
+
+/* SCHEDULE LIST */
+.schedule-item { padding:10px 12px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:6px; border-left:3px solid var(--accent); display:flex; justify-content:space-between; align-items:center; }
+.schedule-item.proposal { border-left-color:var(--accent3); }
+.schedule-item.personal { border-left-color:var(--accent2); }
+.schedule-info { flex:1; }
+.schedule-name { font-size:14px; }
+.schedule-meta { font-size:11px; color:var(--text2); margin-top:2px; font-family:'Space Mono',monospace; }
+.schedule-del { background:none; border:none; color:var(--text3); cursor:pointer; padding:4px; }
+
+/* WEEK VIEW */
+.week-grid { display:grid; grid-template-columns:auto repeat(7,1fr); gap:1px; background:var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.week-time { background:var(--surface); font-size:10px; color:var(--text3); padding:4px 4px; font-family:'Space Mono',monospace; }
+.week-cell { background:var(--surface2); min-height:28px; position:relative; cursor:pointer; }
+.week-cell.weekend { background:#161E16; }
+.week-event { position:absolute; inset:1px; border-radius:3px; font-size:9px; padding:2px 3px; overflow:hidden; background:var(--accent); color:#000; }
+.week-header { background:var(--surface); font-size:11px; text-align:center; padding:6px 2px; font-weight:500; }
+.week-header.today-col { color:var(--accent); }
+.week-header.sunday { color:var(--danger); }
+.week-header.saturday { color:#6B8EFF; }
+
+/* HEALTH */
+.health-row { display:flex; gap:10px; margin-bottom:12px; }
+.health-stat { flex:1; background:var(--surface2); border-radius:var(--radius-sm); padding:12px; text-align:center; }
+.health-val { font-size:24px; font-weight:700; font-family:'Space Mono',monospace; color:var(--accent); }
+.health-unit { font-size:11px; color:var(--text3); }
+.health-label { font-size:12px; color:var(--text2); margin-top:4px; }
+.progress-bar { background:var(--surface3); border-radius:4px; height:6px; margin-top:8px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:4px; background:var(--accent); transition:width .5s; }
+.chart-area { background:var(--surface2); border-radius:var(--radius-sm); padding:12px; position:relative; height:120px; margin-bottom:12px; }
+
+/* PROPOSALS */
+.proposal-card { background:var(--surface2); border-radius:var(--radius-sm); padding:12px; margin-bottom:8px; border:1px solid var(--border); }
+.proposal-status { display:inline-block; font-size:10px; padding:2px 8px; border-radius:10px; margin-bottom:6px; }
+.status-pending { background:#2A1F00; color:var(--warn); }
+.status-submitted { background:#001A2A; color:var(--accent2); }
+.status-won { background:#001A0D; color:var(--success); }
+.status-lost { background:#2A0000; color:var(--danger); }
+.proposal-name { font-size:14px; font-weight:500; }
+.proposal-client { font-size:12px; color:var(--text2); }
+.proposal-due { font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; margin-top:4px; }
+.proposal-due.urgent { color:var(--danger); }
+
+/* CYCLE VIEW */
+.cycle-bar { margin-bottom:14px; }
+.cycle-label { font-size:12px; color:var(--text2); margin-bottom:6px; display:flex; justify-content:space-between; }
+.cycle-track { height:28px; background:var(--surface3); border-radius:6px; overflow:hidden; display:flex; }
+.cycle-segment { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; transition:flex .3s; }
+
+/* PAST LOG */
+.log-item { padding:10px 12px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:6px; }
+.log-date { font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; margin-bottom:4px; }
+.log-content { font-size:13px; }
+
+/* TABS */
+.tabs { display:flex; background:var(--surface2); border-radius:var(--radius-sm); padding:3px; margin-bottom:14px; gap:2px; }
+.tab { flex:1; padding:7px; text-align:center; border-radius:6px; font-size:12px; cursor:pointer; color:var(--text2); border:none; background:none; font-family:'Noto Sans KR',sans-serif; transition:.15s; }
+.tab.active { background:var(--surface3); color:var(--text); }
+
+/* CARRY OVER SECTION */
+.carry-section { background:#2A1F00; border:1px solid #3A2D00; border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; }
+.carry-title { font-size:12px; color:var(--warn); margin-bottom:6px; display:flex; align-items:center; gap:4px; }
+.carry-task { font-size:13px; padding:4px 0; display:flex; align-items:center; gap:8px; cursor:pointer; }
+.carry-add-btn { background:none; border:1px solid var(--warn); color:var(--warn); border-radius:6px; font-size:12px; padding:3px 8px; cursor:pointer; margin-left:auto; font-family:'Noto Sans KR',sans-serif; }
+
+/* EMPTY */
+.empty { text-align:center; padding:30px; color:var(--text3); font-size:13px; }
+
+/* SECTION TITLE */
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.section-title { font-size:15px; font-weight:700; }
+.section-sub { font-size:12px; color:var(--text2); }
+.add-btn { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:5px 10px; color:var(--text2); font-size:12px; cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-top">
+      <div class="app-logo">MY<br>PLANNER</div>
+      <div style="text-align:right">
+        <div id="hd-date" class="header-date"></div>
+        <div id="hd-day" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+      </div>
+    </div>
+    <div class="badge-row" id="badge-row"></div>
+  </div>
+
+  <div id="content">
+    <!-- TODAY -->
+    <div class="section active" id="sec-today">
+      <div id="carry-section" style="display:none"></div>
+      <div class="section-header">
+        <div class="section-title">오늘의 할일</div>
+        <button class="add-btn" onclick="openAddTask()">+ 추가</button>
+      </div>
+      <div id="task-list"></div>
+      <div style="height:12px"></div>
+      <div class="section-header">
+        <div class="section-title">오늘 일정</div>
+      </div>
+      <div id="today-schedule-list"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="section" id="sec-calendar">
+      <div class="card">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calMove(-1)">◀</button>
+          <div class="cal-title" id="cal-title"></div>
+          <button class="cal-nav" onclick="calMove(1)">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <div class="section-header">
+        <div class="section-title" id="cal-sel-label">일정</div>
+        <button class="add-btn" onclick="openAddSchedule()">+ 추가</button>
+      </div>
+      <div id="cal-event-list"></div>
+
+      <div style="height:12px"></div>
+      <div class="tabs" id="view-tabs">
+        <button class="tab active" onclick="switchCalView('month',this)">월간</button>
+        <button class="tab" onclick="switchCalView('week',this)">주간</button>
+        <button class="tab" onclick="switchCalView('cycle',this)">사이클</button>
+      </div>
+      <div id="week-view" style="display:none;overflow-x:auto"></div>
+      <div id="cycle-view" style="display:none"></div>
+    </div>
+
+    <!-- PROPOSALS -->
+    <div class="section" id="sec-proposal">
+      <div class="section-header">
+        <div class="section-title">제안서 관리</div>
+        <button class="add-btn" onclick="openAddProposal()">+ 추가</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="pt-all" onclick="filterProposals('all',this)">전체</button>
+        <button class="tab" id="pt-pending" onclick="filterProposals('pending',this)">작성중</button>
+        <button class="tab" id="pt-submitted" onclick="filterProposals('submitted',this)">제출</button>
+        <button class="tab" id="pt-won" onclick="filterProposals('won',this)">수주</button>
+      </div>
+      <div id="proposal-list"></div>
+    </div>
+
+    <!-- HEALTH -->
+    <div class="section" id="sec-health">
+      <div class="section-header">
+        <div class="section-title">건강 관리</div>
+        <button class="add-btn" onclick="openAddHealth()">+ 기록</button>
+      </div>
+      <div class="health-row">
+        <div class="health-stat">
+          <div class="health-val" id="h-weight">--</div>
+          <div class="health-unit">kg</div>
+          <div class="health-label">체중</div>
+        </div>
+        <div class="health-stat">
+          <div class="health-val" id="h-steps">--</div>
+          <div class="health-unit">보</div>
+          <div class="health-label">걸음수</div>
+        </div>
+        <div class="health-stat">
+          <div class="health-val" id="h-sleep">--</div>
+          <div class="health-unit">시간</div>
+          <div class="health-label">수면</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span></span>오늘 운동</div>
+        <div id="exercise-list"></div>
+        <button class="add-btn" style="width:100%;margin-top:8px;padding:8px" onclick="openAddExercise()">+ 운동 추가</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span style="background:var(--accent2)"></span>체중 추이 (최근 30일)</div>
+        <canvas id="weight-chart" width="300" height="100" style="width:100%;height:100px"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title"><span style="background:var(--accent3)"></span>최근 건강 기록</div>
+        <div id="health-log"></div>
+      </div>
+    </div>
+
+    <!-- PAST -->
+    <div class="section" id="sec-past">
+      <div class="section-header">
+        <div class="section-title">과거 기록</div>
+        <button class="add-btn" onclick="openAddPast()">+ 기록</button>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <input class="form-input" type="month" id="past-month-filter" onchange="renderPast()">
+      </div>
+      <div id="past-list"></div>
+    </div>
+  </div>
+
+  <nav id="navbar">
+    <button class="nav-btn active" onclick="switchTab('today',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      오늘
+    </button>
+    <button class="nav-btn" onclick="switchTab('calendar',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      캘린더
+    </button>
+    <button class="nav-btn" onclick="switchTab('proposal',this)" id="nav-proposal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      제안서
+    </button>
+    <button class="nav-btn" onclick="switchTab('health',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      건강
+    </button>
+    <button class="nav-btn" onclick="switchTab('past',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 1 .5 4M3 16v-5h5"/></svg>
+      과거
+    </button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">할일 추가</div>
+    <div class="form-group">
+      <label class="form-label">할일 내용</label>
+      <input class="form-input" id="task-title" placeholder="무엇을 해야 하나요?" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">시간</label>
+        <input class="form-input" type="time" id="task-time" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">카테고리</label>
+        <select class="form-input form-select" id="task-cat">
+          <option value="업무">업무</option>
+          <option value="개인">개인</option>
+          <option value="건강">건강</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">날짜</label>
+      <input class="form-input" type="date" id="task-date" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task')">취소</button>
+      <button class="btn btn-primary" onclick="saveTask()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-schedule">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">일정 추가</div>
+    <div class="form-group">
+      <label class="form-label">일정명</label>
+      <input class="form-input" id="sch-title" placeholder="일정 제목" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">날짜</label>
+        <input class="form-input" type="date" id="sch-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">시간</label>
+        <input class="form-input" type="time" id="sch-time" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">종류</label>
+        <select class="form-input form-select" id="sch-type">
+          <option value="work">업무</option>
+          <option value="personal">개인</option>
+          <option value="proposal">제안서</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">반복</label>
+        <select class="form-input form-select" id="sch-repeat">
+          <option value="none">없음</option>
+          <option value="weekly">매주</option>
+          <option value="monthly">매월</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="sch-memo" placeholder="추가 메모" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-schedule')">취소</button>
+      <button class="btn btn-primary" onclick="saveSchedule()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-proposal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">제안서 추가</div>
+    <div class="form-group">
+      <label class="form-label">프로젝트명</label>
+      <input class="form-input" id="prop-name" placeholder="프로젝트 이름" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">클라이언트</label>
+      <input class="form-input" id="prop-client" placeholder="고객사명" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">마감일</label>
+        <input class="form-input" type="date" id="prop-due" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">금액 (만원)</label>
+        <input class="form-input" type="number" id="prop-amount" placeholder="0" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">상태</label>
+      <select class="form-input form-select" id="prop-status">
+        <option value="pending">작성중</option>
+        <option value="submitted">제출완료</option>
+        <option value="won">수주</option>
+        <option value="lost">미수주</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="prop-memo" placeholder="추가 내용" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-proposal')">취소</button>
+      <button class="btn btn-primary" onclick="saveProposal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-health">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">건강 기록</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">체중 (kg)</label>
+        <input class="form-input" type="number" step="0.1" id="h-weight-in" placeholder="0.0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">걸음수</label>
+        <input class="form-input" type="number" id="h-steps-in" placeholder="0" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">수면 (시간)</label>
+        <input class="form-input" type="number" step="0.5" id="h-sleep-in" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">날짜</label>
+        <input class="form-input" type="date" id="h-date-in" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="h-memo-in" placeholder="컨디션, 특이사항 등" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-health')">취소</button>
+      <button class="btn btn-primary" onclick="saveHealth()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-exercise">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">운동 기록</div>
+    <div class="form-group">
+      <label class="form-label">운동 종류</label>
+      <input class="form-input" id="ex-type" placeholder="예: 런닝, 웨이트, 수영" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">시간 (분)</label>
+        <input class="form-input" type="number" id="ex-duration" placeholder="30" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">강도</label>
+        <select class="form-input form-select" id="ex-intensity">
+          <option value="low">낮음</option>
+          <option value="mid" selected>보통</option>
+          <option value="high">높음</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <input class="form-input" id="ex-memo" placeholder="세트, 거리 등" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-exercise')">취소</button>
+      <button class="btn btn-primary" onclick="saveExercise()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-past">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">과거 기록 추가</div>
+    <div class="form-group">
+      <label class="form-label">날짜</label>
+      <input class="form-input" type="date" id="past-date-in" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">카테고리</label>
+      <select class="form-input form-select" id="past-cat-in">
+        <option value="업무">업무</option>
+        <option value="제안서">제안서</option>
+        <option value="개인">개인</option>
+        <option value="건강">건강</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">내용</label>
+      <textarea class="form-input" id="past-content-in" rows="4" placeholder="기록할 내용을 입력하세요" style="resize:none"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-past')">취소</button>
+      <button class="btn btn-primary" onclick="savePast()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA STORE =====
+const DB = {
+  get(key, def=[]) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
+  },
+  set(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+};
+
+let tasks = DB.get('tasks');
+let schedules = DB.get('schedules');
+let proposals = DB.get('proposals');
+let healthLogs = DB.get('healthLogs');
+let exercises = DB.get('exercises');
+let pastLogs = DB.get('pastLogs');
+
+function save() {
+  DB.set('tasks', tasks);
+  DB.set('schedules', schedules);
+  DB.set('proposals', proposals);
+  DB.set('healthLogs', healthLogs);
+  DB.set('exercises', exercises);
+  DB.set('pastLogs', pastLogs);
+}
+
+// ===== DATE UTILS =====
+function toDateStr(d) { return d.toISOString().slice(0,10); }
+const today = toDateStr(new Date());
+let calDate = new Date();
+let selectedDate = today;
+let calView = 'month';
+let propFilter = 'all';
+
+// ===== HEADER =====
+function renderHeader() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('hd-date').textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+  document.getElementById('hd-day').textContent = `${days[d.getDay()]}요일`;
+
+  // Badges
+  const urgentProps = proposals.filter(p => p.status==='pending' && daysUntil(p.due) <= 7 && daysUntil(p.due) >= 0);
+  const unfinished = tasks.filter(t => !t.done && t.date < today);
+  const row = document.getElementById('badge-row');
+  row.innerHTML = '';
+  if (urgentProps.length) row.innerHTML += `<span class="badge danger">⚡ 마감 ${urgentProps.length}건</span>`;
+  if (unfinished.length) row.innerHTML += `<span class="badge warn">↩ 미완료 ${unfinished.length}건</span>`;
+  const todayTasks = tasks.filter(t => t.date === today);
+  const doneCnt = todayTasks.filter(t=>t.done).length;
+  if (todayTasks.length) row.innerHTML += `<span class="badge">✓ ${doneCnt}/${todayTasks.length}</span>`;
+}
+
+function daysUntil(dateStr) {
+  return Math.floor((new Date(dateStr) - new Date(today)) / 86400000);
+}
+
+// ===== NAV =====
+function switchTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='today') { renderToday(); }
+  if (name==='calendar') { renderCalendar(); }
+  if (name==='proposal') { renderProposals(); }
+  if (name==='health') { renderHealth(); }
+  if (name==='past') { renderPast(); }
+}
+
+// ===== TODAY =====
+function renderToday() {
+  renderCarryOver();
+  renderTaskList();
+  renderTodaySchedule();
+  renderHeader();
+}
+
+function renderCarryOver() {
+  const carried = tasks.filter(t => !t.done && t.date < today);
+  const sec = document.getElementById('carry-section');
+  if (!carried.length) { sec.style.display='none'; return; }
+  sec.style.display='block';
+  sec.innerHTML = `<div class="carry-section">
+    <div class="carry-title">⚠️ 미완료 → 오늘로 이월 (${carried.length}건)</div>
+    ${carried.map(t=>`
+      <div class="carry-task">
+        <span style="color:var(--warn)">↩</span>
+        <span style="flex:1;font-size:13px">${t.title}</span>
+        <span style="font-size:10px;color:var(--text3)">${t.date}</span>
+        <button class="carry-add-btn" onclick="moveToToday('${t.id}')">오늘로</button>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function moveToToday(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (t) { t.date = today; save(); renderToday(); }
+}
+
+function renderTaskList() {
+  const todayTasks = tasks.filter(t => t.date === today).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const el = document.getElementById('task-list');
+  if (!todayTasks.length) { el.innerHTML='<div class="empty">오늘 할일이 없습니다</div>'; return; }
+  el.innerHTML = todayTasks.map(t=>`
+    <div class="task-item" onclick="toggleTask('${t.id}')">
+      <div class="task-check ${t.done?'done':''}">
+        <svg viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><polyline points="2,6 5,9 10,3"/></svg>
+      </div>
+      <div style="flex:1">
+        <div class="task-text ${t.done?'done':''}">${t.title}</div>
+        <div style="display:flex;gap:6px;margin-top:3px;align-items:center">
+          ${t.time?`<span class="task-time">${t.time}</span>`:''}
+          <span class="task-cat">${t.category}</span>
+        </div>
+      </div>
+      <button onclick="event.stopPropagation();deleteTask('${t.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;font-size:16px">×</button>
+    </div>
+  `).join('');
+}
+
+function renderTodaySchedule() {
+  const todaySch = getSchedulesForDate(today);
+  const el = document.getElementById('today-schedule-list');
+  if (!todaySch.length) { el.innerHTML='<div class="empty">오늘 일정이 없습니다</div>'; return; }
+  el.innerHTML = todaySch.map(s=>`
+    <div class="schedule-item ${s.type==='proposal'?'proposal':s.type==='personal'?'personal':''}">
+      <div class="schedule-info">
+        <div class="schedule-name">${s.title}</div>
+        <div class="schedule-meta">${s.time||'시간미정'} · ${s.type==='work'?'업무':s.type==='personal'?'개인':'제안서'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleTask(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (t) { t.done = !t.done; save(); renderToday(); }
+}
+function deleteTask(id) {
+  tasks = tasks.filter(x=>x.id!==id); save(); renderToday();
+}
+
+// ===== CALENDAR =====
+function renderCalendar() {
+  renderCalGrid();
+  renderCalEvents();
+  renderHeader();
+}
+
+function renderCalGrid() {
+  const y = calDate.getFullYear(), m = calDate.getMonth();
+  document.getElementById('cal-title').textContent = `${y}년 ${m+1}월`;
+  const first = new Date(y,m,1).getDay();
+  const last = new Date(y,m+1,0).getDate();
+  const days = ['일','월','화','수','목','금','토'];
+  let html = days.map((d,i)=>`<div class="cal-day-name ${i===0?'':''}${i===6?'':''}" style="${i===0?'color:var(--danger)':i===6?'color:#6B8EFF':''}">${d}</div>`).join('');
+  for(let i=0;i<first;i++) {
+    const d = new Date(y,m,-first+i+1);
+    html += `<div class="cal-cell other-month">${d.getDate()}</div>`;
+  }
+  for(let d=1;d<=last;d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(y,m,d).getDay();
+    const isToday = dateStr===today;
+    const isSel = dateStr===selectedDate;
+    const hasEv = getSchedulesForDate(dateStr).length > 0 || tasks.filter(t=>t.date===dateStr).length > 0;
+    const cls = [
+      isToday?'today':'',
+      isSel&&!isToday?'selected':'',
+      hasEv?'has-event':'',
+      dow===0?'sunday':dow===6?'saturday':''
+    ].filter(Boolean).join(' ');
+    html += `<div class="cal-cell ${cls}" onclick="selectDate('${dateStr}')">${d}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function selectDate(d) {
+  selectedDate = d;
+  renderCalGrid();
+  renderCalEvents();
+}
+
+function renderCalEvents() {
+  const label = document.getElementById('cal-sel-label');
+  label.textContent = selectedDate===today ? '오늘 일정' : selectedDate + ' 일정';
+  const evs = getSchedulesForDate(selectedDate);
+  const el = document.getElementById('cal-event-list');
+  if (!evs.length) { el.innerHTML='<div class="empty">이 날 일정이 없습니다</div>'; return; }
+  el.innerHTML = evs.map(s=>`
+    <div class="schedule-item ${s.type==='proposal'?'proposal':s.type==='personal'?'personal':''}">
+      <div class="schedule-info">
+        <div class="schedule-name">${s.title}</div>
+        <div class="schedule-meta">${s.time||'시간미정'} · ${s.memo||''}</div>
+      </div>
+      <button class="schedule-del" onclick="deleteSchedule('${s.id}')">×</button>
+    </div>
+  `).join('');
+}
+
+function getSchedulesForDate(dateStr) {
+  return schedules.filter(s => {
+    if (s.date === dateStr) return true;
+    if (s.repeat === 'weekly') {
+      const a = new Date(s.date), b = new Date(dateStr);
+      return a.getDay()===b.getDay() && b>=a;
+    }
+    if (s.repeat === 'monthly') {
+      const a = new Date(s.date), b = new Date(dateStr);
+      return a.getDate()===b.getDate() && b>=a;
+    }
+    return false;
+  });
+}
+
+function calMove(d) {
+  calDate.setMonth(calDate.getMonth()+d);
+  renderCalendar();
+}
+
+function switchCalView(v, btn) {
+  calView = v;
+  document.querySelectorAll('#view-tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('week-view').style.display = v==='week'?'block':'none';
+  document.getElementById('cycle-view').style.display = v==='cycle'?'block':'none';
+  if (v==='week') renderWeekView();
+  if (v==='cycle') renderCycleView();
+}
+
+function renderWeekView() {
+  const now = new Date();
+  const dow = now.getDay();
+  const monday = new Date(now); monday.setDate(now.getDate()-dow);
+  const hours = [9,10,11,12,13,14,15,16,17,18,19,20];
+  const dayNames = ['일','월','화','수','목','금','토'];
+  let html = '<div class="week-grid" style="grid-template-columns:30px repeat(7,1fr)">';
+  html += '<div class="week-header"></div>';
+  for(let i=0;i<7;i++) {
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const isTd = toDateStr(d)===today;
+    html += `<div class="week-header ${isTd?'today-col':''} ${i===0?'sunday':i===6?'saturday':''}">${dayNames[i]}<br><span style="font-size:13px;font-weight:700">${d.getDate()}</span></div>`;
+  }
+  hours.forEach(h => {
+    html += `<div class="week-time">${h}시</div>`;
+    for(let i=0;i<7;i++) {
+      const d = new Date(monday); d.setDate(monday.getDate()+i);
+      const dateStr = toDateStr(d);
+      const evs = getSchedulesForDate(dateStr).filter(s=>s.time&&parseInt(s.time)===h);
+      html += `<div class="week-cell ${i===0||i===6?'weekend':''}">
+        ${evs.map(e=>`<div class="week-event">${e.title}</div>`).join('')}
+      </div>`;
+    }
+  });
+  html += '</div>';
+  document.getElementById('week-view').innerHTML = html;
+}
+
+function renderCycleView() {
+  const d = new Date();
+  const y = d.getFullYear(), m = d.getMonth();
+  const dayOfYear = Math.floor((d - new Date(y,0,0)) / 86400000);
+  const weekOfYear = Math.ceil(dayOfYear/7);
+  const weekOfMonth = Math.ceil(d.getDate()/7);
+  const quarter = Math.floor(m/3)+1;
+  const monthInQ = m%3+1;
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const pMonth = Math.round(d.getDate()/daysInMonth*100);
+  const pWeek = Math.round(d.getDay()/7*100);
+  const pQ = Math.round(monthInQ/3*100);
+  const pYear = Math.round(dayOfYear/365*100);
+
+  document.getElementById('cycle-view').innerHTML = `
+    <div class="card">
+      <div class="card-title"><span></span>현재 위치</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        ${y}년 ${m+1}월 ${d.getDate()}일 · 제${weekOfYear}주 · ${quarter}분기 ${monthInQ}번째달
+      </div>
+      ${cycleBar('이번 주 진행률', pWeek, `${d.getDay()}일/7일`, 'var(--accent)')}
+      ${cycleBar('이번 달 진행률', pMonth, `${d.getDate()}일/${daysInMonth}일`, 'var(--accent2)')}
+      ${cycleBar('분기 진행률', pQ, `${monthInQ}월/3개월`, 'var(--accent3)')}
+      ${cycleBar('연간 진행률', pYear, `${dayOfYear}일/365일`, '#6B8EFF')}
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="background:var(--accent2)"></span>월별 일정 수</div>
+      ${[0,1,2,3,4,5,6,7,8,9,10,11].map(mi=>{
+        const cnt = schedules.filter(s=>new Date(s.date).getMonth()===mi && new Date(s.date).getFullYear()===y).length;
+        const mn = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+        const isCur = mi===m;
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-size:11px;color:${isCur?'var(--accent)':'var(--text3)'};width:20px;font-family:'Space Mono',monospace">${mn[mi]}</span>
+          <div style="flex:1;background:var(--surface3);border-radius:3px;height:16px;overflow:hidden">
+            <div style="height:100%;background:${isCur?'var(--accent)':'var(--surface2)'};width:${Math.min(cnt*20,100)}%;border-radius:3px;border-right:${cnt?'2px solid var(--accent)':'none'}"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text3);width:20px;text-align:right">${cnt}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function cycleBar(label, pct, sub, color) {
+  return `<div class="cycle-bar">
+    <div class="cycle-label"><span>${label}</span><span style="font-family:'Space Mono',monospace;font-size:11px">${sub} (${pct}%)</span></div>
+    <div style="background:var(--surface3);border-radius:4px;height:12px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .5s"></div>
+    </div>
+  </div>`;
+}
+
+// ===== PROPOSALS =====
+function renderProposals() {
+  const list = propFilter==='all' ? proposals : proposals.filter(p=>p.status===propFilter);
+  const statusLabel = {pending:'작성중',submitted:'제출완료',won:'수주',lost:'미수주'};
+  const el = document.getElementById('proposal-list');
+  if (!list.length) { el.innerHTML='<div class="empty">제안서가 없습니다</div>'; return; }
+  el.innerHTML = list.sort((a,b)=>a.due.localeCompare(b.due)).map(p=>{
+    const du = daysUntil(p.due);
+    const urgentCls = du<=3&&du>=0&&p.status==='pending'?'urgent':'';
+    return `<div class="proposal-card">
+      <div class="proposal-status status-${p.status}">${statusLabel[p.status]}</div>
+      <div class="proposal-name">${p.name}</div>
+      <div class="proposal-client">${p.client}</div>
+      ${p.amount?`<div style="font-size:12px;color:var(--accent);margin-top:2px">${Number(p.amount).toLocaleString()}만원</div>`:''}
+      <div class="proposal-due ${urgentCls}">마감: ${p.due} ${du>=0?`(D-${du})`:`(D+${Math.abs(du)})`}</div>
+      ${p.memo?`<div style="font-size:12px;color:var(--text3);margin-top:4px">${p.memo}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        ${['pending','submitted','won','lost'].map(s=>
+          `<button onclick="updateProposalStatus('${p.id}','${s}')" style="flex:1;padding:4px;border-radius:4px;border:1px solid ${p.status===s?'var(--accent)':'var(--border)'};background:${p.status===s?'var(--accent)':'none'};color:${p.status===s?'#000':'var(--text3)'};font-size:10px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">${statusLabel[s]}</button>`
+        ).join('')}
+        <button onclick="deleteProposal('${p.id}')" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--danger);font-size:12px;cursor:pointer">×</button>
+      </div>
+    </div>`;
+  }).join('');
+  renderHeader();
+}
+
+function filterProposals(f, btn) {
+  propFilter = f;
+  document.querySelectorAll('#sec-proposal .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderProposals();
+}
+
+function updateProposalStatus(id, status) {
+  const p = proposals.find(x=>x.id===id);
+  if(p){ p.status=status; save(); renderProposals(); }
+}
+function deleteProposal(id) {
+  proposals = proposals.filter(x=>x.id!==id); save(); renderProposals();
+}
+
+// ===== HEALTH =====
+function renderHealth() {
+  const todayLog = healthLogs.filter(h=>h.date===today).slice(-1)[0];
+  document.getElementById('h-weight').textContent = todayLog?.weight||'--';
+  document.getElementById('h-steps').textContent = todayLog?.steps||'--';
+  document.getElementById('h-sleep').textContent = todayLog?.sleep||'--';
+
+  const todayEx = exercises.filter(e=>e.date===today);
+  const exEl = document.getElementById('exercise-list');
+  if (!todayEx.length) { exEl.innerHTML='<div class="empty">오늘 운동 기록이 없습니다</div>'; }
+  else {
+    const intLabel = {low:'낮음',mid:'보통',high:'높음'};
+    exEl.innerHTML = todayEx.map(e=>`
+      <div class="task-item">
+        <div style="width:8px;height:8px;border-radius:50%;background:${e.intensity==='high'?'var(--danger)':e.intensity==='mid'?'var(--accent)':'var(--success)'};flex-shrink:0"></div>
+        <div style="flex:1"><div style="font-size:14px">${e.type}</div><div style="font-size:11px;color:var(--text3)">${e.duration}분 · ${intLabel[e.intensity]}${e.memo?` · ${e.memo}`:''}</div></div>
+        <button onclick="deleteExercise('${e.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer">×</button>
+      </div>
+    `).join('');
+  }
+
+  renderWeightChart();
+
+  const logEl = document.getElementById('health-log');
+  const logs = [...healthLogs].reverse().slice(0,10);
+  logEl.innerHTML = logs.map(h=>`
+    <div class="log-item">
+      <div class="log-date">${h.date}</div>
+      <div class="log-content" style="display:flex;gap:12px;font-size:13px">
+        ${h.weight?`<span>⚖️ ${h.weight}kg</span>`:''}
+        ${h.steps?`<span>👟 ${h.steps}보</span>`:''}
+        ${h.sleep?`<span>😴 ${h.sleep}h</span>`:''}
+        ${h.memo?`<span style="color:var(--text2)">${h.memo}</span>`:''}
+      </div>
+    </div>
+  `).join('') || '<div class="empty">건강 기록이 없습니다</div>';
+}
+
+function renderWeightChart() {
+  const canvas = document.getElementById('weight-chart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const logs = healthLogs.filter(l=>l.weight).slice(-30);
+  if (logs.length < 2) {
+    ctx.fillStyle='#555'; ctx.font='12px Noto Sans KR'; ctx.textAlign='center';
+    ctx.fillText('데이터를 더 입력하면 그래프가 표시됩니다', w/2, h/2);
+    return;
+  }
+  const weights = logs.map(l=>parseFloat(l.weight));
+  const mn = Math.min(...weights)-1, mx = Math.max(...weights)+1;
+  const toY = v => h - 10 - (v-mn)/(mx-mn)*(h-20);
+  ctx.strokeStyle='#2A2A2A'; ctx.lineWidth=1;
+  [mn+1,mn+(mx-mn)/2,mx-1].forEach(v=>{
+    const y = toY(v);
+    ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w,y); ctx.stroke();
+    ctx.fillStyle='#555'; ctx.font='10px Space Mono'; ctx.textAlign='left';
+    ctx.fillText(v.toFixed(1), 0, y+4);
+  });
+  ctx.beginPath();
+  logs.forEach((l,i)=>{
+    const x = 30 + i/(logs.length-1)*(w-30);
+    const y = toY(parseFloat(l.weight));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle='#47FFD4'; ctx.lineWidth=2; ctx.stroke();
+  logs.forEach((l,i)=>{
+    const x = 30 + i/(logs.length-1)*(w-30);
+    const y = toY(parseFloat(l.weight));
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle='#47FFD4'; ctx.fill();
+  });
+}
+
+function deleteExercise(id) {
+  exercises = exercises.filter(x=>x.id!==id); save(); renderHealth();
+}
+
+// ===== PAST =====
+function renderPast() {
+  const filter = document.getElementById('past-month-filter').value;
+  const list = filter ? pastLogs.filter(p=>p.date.startsWith(filter)) : pastLogs;
+  const el = document.getElementById('past-list');
+  if (!list.length) { el.innerHTML='<div class="empty">기록이 없습니다</div>'; return; }
+  const sorted = [...list].sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML = sorted.map(p=>`
+    <div class="log-item" style="border-left:3px solid var(--accent)">
+      <div class="log-date" style="display:flex;justify-content:space-between">
+        <span>${p.date} · <span style="color:var(--accent2)">${p.category}</span></span>
+        <button onclick="deletePast('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer">×</button>
+      </div>
+      <div class="log-content">${p.content}</div>
+    </div>
+  `).join('');
+}
+function deletePast(id) {
+  pastLogs = pastLogs.filter(x=>x.id!==id); save(); renderPast();
+}
+
+// ===== MODALS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); });
+});
+
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+
+function openAddTask() {
+  document.getElementById('task-title').value='';
+  document.getElementById('task-time').value='';
+  document.getElementById('task-date').value=selectedDate||today;
+  openModal('modal-task');
+}
+function saveTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) return;
+  tasks.push({ id:uid(), title, time:document.getElementById('task-time').value, category:document.getElementById('task-cat').value, date:document.getElementById('task-date').value||today, done:false });
+  save(); closeModal('modal-task'); renderToday();
+}
+
+function openAddSchedule() {
+  document.getElementById('sch-title').value='';
+  document.getElementById('sch-date').value=selectedDate||today;
+  document.getElementById('sch-time').value='';
+  document.getElementById('sch-memo').value='';
+  openModal('modal-schedule');
+}
+function saveSchedule() {
+  const title = document.getElementById('sch-title').value.trim();
+  if (!title) return;
+  schedules.push({ id:uid(), title, date:document.getElementById('sch-date').value||today, time:document.getElementById('sch-time').value, type:document.getElementById('sch-type').value, repeat:document.getElementById('sch-repeat').value, memo:document.getElementById('sch-memo').value });
+  save(); closeModal('modal-schedule'); renderCalendar();
+}
+function deleteSchedule(id) {
+  schedules = schedules.filter(x=>x.id!==id); save(); renderCalEvents(); renderCalGrid();
+}
+
+function openAddProposal() {
+  ['prop-name','prop-client','prop-memo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('prop-due').value='';
+  document.getElementById('prop-amount').value='';
+  openModal('modal-proposal');
+}
+function saveProposal() {
+  const name = document.getElementById('prop-name').value.trim();
+  if (!name) return;
+  proposals.push({ id:uid(), name, client:document.getElementById('prop-client').value, due:document.getElementById('prop-due').value, amount:document.getElementById('prop-amount').value, status:document.getElementById('prop-status').value, memo:document.getElementById('prop-memo').value });
+  save(); closeModal('modal-proposal'); renderProposals();
+}
+
+function openAddHealth() {
+  ['h-weight-in','h-steps-in','h-sleep-in','h-memo-in'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('h-date-in').value=today;
+  openModal('modal-health');
+}
+function saveHealth() {
+  healthLogs.push({ id:uid(), date:document.getElementById('h-date-in').value||today, weight:document.getElementById('h-weight-in').value, steps:document.getElementById('h-steps-in').value, sleep:document.getElementById('h-sleep-in').value, memo:document.getElementById('h-memo-in').value });
+  save(); closeModal('modal-health'); renderHealth();
+}
+
+function openAddExercise() {
+  ['ex-type','ex-duration','ex-memo'].forEach(id=>document.getElementById(id).value='');
+  openModal('modal-exercise');
+}
+function saveExercise() {
+  const type = document.getElementById('ex-type').value.trim();
+  if (!type) return;
+  exercises.push({ id:uid(), type, duration:document.getElementById('ex-duration').value, intensity:document.getElementById('ex-intensity').value, memo:document.getElementById('ex-memo').value, date:today });
+  save(); closeModal('modal-exercise'); renderHealth();
+}
+
+function openAddPast() {
+  document.getElementById('past-date-in').value=today;
+  document.getElementById('past-content-in').value='';
+  openModal('modal-past');
+}
+function savePast() {
+  const content = document.getElementById('past-content-in').value.trim();
+  if (!content) return;
+  pastLogs.push({ id:uid(), date:document.getElementById('past-date-in').value||today, category:document.getElementById('past-cat-in').value, content });
+  save(); closeModal('modal-past'); renderPast();
+}
+
+// ===== INIT =====
+document.getElementById('past-month-filter').value = today.slice(0,7);
+renderToday();
+renderHeader();
+</script>
+</body>
+</html>
