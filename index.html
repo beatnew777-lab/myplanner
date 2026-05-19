@@ -1098,7 +1098,6 @@ const ROUTINES = {
   daily: [
     // 요일별: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
     { title: '예준이 배구 라이딩', days: [1,2,4,5], category: '개인', time: '' },
-    { title: '아침 할일 작성하기', days: [1,2,3,4,5,6,0], category: '업무', time: '08:00' },
     { title: '푸쉬업 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
     { title: '스쿼트 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
     { title: '철봉 매달리기', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
@@ -1184,7 +1183,6 @@ function getNthWeekday(year, month, dow, n) {
 }
 
 function getUpcomingRoutines() {
-  // 이번달 앞으로 남은 월별 이벤트
   const d = new Date();
   const dom = d.getDate();
   const month = d.getMonth();
@@ -1200,19 +1198,24 @@ function getUpcomingRoutines() {
     }
     if (targetDay > dom) {
       const daysLeft = targetDay - dom;
-      upcoming.push({ title: r.title, daysLeft, targetDay, urgent: r.urgent || daysLeft <= 2 });
+      if (daysLeft >= 1 && daysLeft <= 3) {
+        upcoming.push({ title: r.title, daysLeft, targetDay, urgent: r.urgent || true });
+      }
     }
   });
 
   if (isQuarterMonth) {
     ROUTINES.quarterly.forEach(r => {
       if (r.dueDay > dom) {
-        upcoming.push({ title: r.title, daysLeft: r.dueDay - dom, targetDay: r.dueDay, urgent: true });
+        const daysLeft = r.dueDay - dom;
+        if (daysLeft >= 1 && daysLeft <= 3) {
+          upcoming.push({ title: r.title, daysLeft, targetDay: r.dueDay, urgent: true });
+        }
       }
     });
   }
 
-  return upcoming.sort((a,b) => a.daysLeft - b.daysLeft).slice(0, 5);
+  return upcoming.sort((a,b) => a.daysLeft - b.daysLeft);
 }
 
 // ===== ROUTINE RENDER (오늘 탭에 추가) =====
@@ -1223,14 +1226,24 @@ function renderRoutineSection() {
   let html = '';
 
   if (todayR.length) {
+    // 카테고리별 그룹핑
+    const groups = {};
+    todayR.forEach(r => {
+      if (!groups[r.category]) groups[r.category] = [];
+      groups[r.category].push(r);
+    });
+
+    const catColor = { '개인':'var(--accent2)', '건강':'var(--accent)', '업무':'var(--warn)', '분기':'var(--accent3)' };
+    const tagColor = { '분기':'var(--accent3)', '매월':'var(--warn)', '매월말':'var(--warn)', '매주':'var(--accent2)', '매일':'var(--accent)' };
+
     html += `<div class="card" style="margin-bottom:12px">
-      <div class="card-title"><span style="background:var(--accent2)"></span>오늘의 루틴 (${todayR.length}개)</div>
-      ${todayR.map(r => `
-        <div class="task-item" style="cursor:default">
-          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${r.tag==='분기'?'var(--accent3)':r.tag==='매월'||r.tag==='매월말'?'var(--warn)':r.tag==='매주'?'var(--accent2)':'var(--accent)'}"></div>
+      <div class="card-title"><span style="background:var(--accent2)"></span>오늘의 루틴</div>
+      ${Object.entries(groups).map(([cat, items]) => `
+        <div class="task-item" style="cursor:default;align-items:flex-start;padding:10px 0">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;background:${catColor[cat]||'var(--accent)'}"></div>
           <div style="flex:1">
-            <div style="font-size:14px;${r.urgent?'color:var(--danger);font-weight:500':''}">${r.title}</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.tag} · ${r.category}${r.time?' · '+r.time:''}</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:3px">${cat}</div>
+            <div style="font-size:14px">${items.map(r => r.title).join(', ')}</div>
           </div>
         </div>
       `).join('')}
@@ -1238,19 +1251,28 @@ function renderRoutineSection() {
   }
 
   if (upcoming.length) {
+    // 같은 daysLeft끼리 그룹핑
+    const dayGroups = {};
+    upcoming.forEach(r => {
+      const key = r.daysLeft;
+      if (!dayGroups[key]) dayGroups[key] = { daysLeft: r.daysLeft, targetDay: r.targetDay, items: [] };
+      dayGroups[key].items.push(r.title);
+    });
+
     html += `<div class="card" style="margin-bottom:12px">
-      <div class="card-title"><span style="background:var(--warn)"></span>이번달 다가오는 루틴</div>
-      ${upcoming.map(r => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-family:'Space Mono',monospace;font-size:12px;color:${r.urgent?'var(--danger)':'var(--warn)'};min-width:36px">D-${r.daysLeft}</div>
-          <div style="font-size:13px;flex:1;${r.urgent?'color:var(--danger)':''}">${r.title}</div>
-          <div style="font-size:11px;color:var(--text3)">${r.targetDay}일</div>
+      <div class="card-title"><span style="background:var(--warn)"></span>다가오는 루틴 (D-1~D-3)</div>
+      ${Object.values(dayGroups).map(g => `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--danger);min-width:36px;padding-top:2px">D-${g.daysLeft}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:var(--danger)">${g.items.join(', ')}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${g.targetDay}일</div>
+          </div>
         </div>
       `).join('')}
     </div>`;
   }
 
-  // 루틴 섹션 삽입
   let routineEl = document.getElementById('routine-section');
   if (!routineEl) {
     routineEl = document.createElement('div');
