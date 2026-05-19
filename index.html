@@ -1093,6 +1093,209 @@ function savePast() {
   save(); closeModal('modal-past'); renderPast();
 }
 
+// ===== ROUTINE DEFINITIONS =====
+const ROUTINES = {
+  daily: [
+    // 요일별: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
+    { title: '예준이 배구 라이딩', days: [1,2,4,5], category: '개인', time: '' },
+    { title: '아침 할일 작성하기', days: [1,2,3,4,5,6,0], category: '업무', time: '08:00' },
+    { title: '푸쉬업 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
+    { title: '스쿼트 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
+    { title: '철봉 매달리기', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
+  ],
+  weekly: [
+    { title: '현대샵 제안서 작성', day: 1, category: '업무', note: '매주 월요일' },
+    { title: 'KB · 베네피아 기획전', day: 5, category: '업무', note: '매주 금요일' },
+  ],
+  monthly: [
+    { title: '정산서 만들어서 매출처에 보내기', date: 1, category: '업무', urgent: false },
+    { title: '역발행 확인버튼 눌러주기 (이제너두, 베네피아 외)', date: 5, category: '업무', urgent: false },
+    { title: '정산서 확인 후 계산서 발행', date: 10, category: '업무', urgent: false },
+    { title: '업체 대금 결제', date: 10, category: '업무', urgent: false },
+    { title: 'SKM&S · 교보 · 삼성 제안서 보내기 ⚡중요', date: 23, category: '업무', urgent: true },
+    { title: '비즈마켓(동양GA) 제안서 보내기', date: 25, category: '업무', urgent: false },
+    { title: '업체 대금 결제', date: 25, category: '업무', urgent: false },
+    { title: '기획전 제안서 보내기 (삼아, 기아샵, 오렌지플러스몰 외)', date: 28, category: '업무', urgent: false },
+    { title: '업체 대금 결제 (말일)', date: -1, category: '업무', urgent: false }, // -1 = 말일
+    { title: 'BFF 모임', weekOfMonth: 3, dayOfWeek: 3, category: '개인', urgent: false }, // 세번째 수요일
+  ],
+  quarterly: [
+    { title: '매입매출 확인 후 계산서 확인 (분기)', dueDay: 5, category: '업무' },
+    { title: '현금매입 및 영수증 확인 (분기)', dueDay: 5, category: '업무' },
+    { title: '통장내역 및 온라인 매출 보내주기 (분기)', dueDay: 12, category: '업무' },
+  ]
+};
+
+// ===== ROUTINE HELPERS =====
+function getTodayRoutines() {
+  const d = new Date();
+  const dow = d.getDay(); // 0=일~6=토
+  const dom = d.getDate();
+  const month = d.getMonth(); // 0~11
+  const daysInMonth = new Date(d.getFullYear(), month+1, 0).getDate();
+  const isQuarterMonth = [0,3,6,9].includes(month); // 1,4,7,10월
+
+  let routines = [];
+
+  // 일별 루틴
+  ROUTINES.daily.forEach(r => {
+    if (r.days.includes(dow)) routines.push({ title: r.title, category: r.category, time: r.time, tag: '매일' });
+  });
+
+  // 주별 루틴
+  ROUTINES.weekly.forEach(r => {
+    if (r.day === dow) routines.push({ title: r.title, category: r.category, time: '', tag: '매주' });
+  });
+
+  // 월별 루틴
+  ROUTINES.monthly.forEach(r => {
+    if (r.weekOfMonth) {
+      // 세번째 수요일 등
+      const nthWed = getNthWeekday(d.getFullYear(), month, r.dayOfWeek, r.weekOfMonth);
+      if (dom === nthWed) routines.push({ title: r.title, category: r.category, time: '', tag: '매월', urgent: r.urgent });
+    } else if (r.date === -1) {
+      if (dom === daysInMonth) routines.push({ title: r.title, category: r.category, time: '', tag: '매월말', urgent: r.urgent });
+    } else if (r.date === dom) {
+      routines.push({ title: r.title, category: r.category, time: '', tag: '매월', urgent: r.urgent });
+    }
+  });
+
+  // 분기별 루틴 (1,4,7,10월)
+  if (isQuarterMonth) {
+    ROUTINES.quarterly.forEach(r => {
+      if (dom === r.dueDay) routines.push({ title: r.title, category: r.category, time: '', tag: '분기', urgent: true });
+    });
+  }
+
+  return routines;
+}
+
+function getNthWeekday(year, month, dow, n) {
+  // month: 0-indexed, dow: 0=일, n: 몇번째
+  let count = 0;
+  const days = new Date(year, month+1, 0).getDate();
+  for (let d = 1; d <= days; d++) {
+    if (new Date(year, month, d).getDay() === dow) {
+      count++;
+      if (count === n) return d;
+    }
+  }
+  return -1;
+}
+
+function getUpcomingRoutines() {
+  // 이번달 앞으로 남은 월별 이벤트
+  const d = new Date();
+  const dom = d.getDate();
+  const month = d.getMonth();
+  const year = d.getFullYear();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const isQuarterMonth = [0,3,6,9].includes(month);
+  let upcoming = [];
+
+  ROUTINES.monthly.forEach(r => {
+    let targetDay = r.date === -1 ? daysInMonth : r.date;
+    if (r.weekOfMonth) {
+      targetDay = getNthWeekday(year, month, r.dayOfWeek, r.weekOfMonth);
+    }
+    if (targetDay > dom) {
+      const daysLeft = targetDay - dom;
+      upcoming.push({ title: r.title, daysLeft, targetDay, urgent: r.urgent || daysLeft <= 2 });
+    }
+  });
+
+  if (isQuarterMonth) {
+    ROUTINES.quarterly.forEach(r => {
+      if (r.dueDay > dom) {
+        upcoming.push({ title: r.title, daysLeft: r.dueDay - dom, targetDay: r.dueDay, urgent: true });
+      }
+    });
+  }
+
+  return upcoming.sort((a,b) => a.daysLeft - b.daysLeft).slice(0, 5);
+}
+
+// ===== ROUTINE RENDER (오늘 탭에 추가) =====
+function renderRoutineSection() {
+  const todayR = getTodayRoutines();
+  const upcoming = getUpcomingRoutines();
+
+  let html = '';
+
+  if (todayR.length) {
+    html += `<div class="card" style="margin-bottom:12px">
+      <div class="card-title"><span style="background:var(--accent2)"></span>오늘의 루틴 (${todayR.length}개)</div>
+      ${todayR.map(r => `
+        <div class="task-item" style="cursor:default">
+          <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${r.tag==='분기'?'var(--accent3)':r.tag==='매월'||r.tag==='매월말'?'var(--warn)':r.tag==='매주'?'var(--accent2)':'var(--accent)'}"></div>
+          <div style="flex:1">
+            <div style="font-size:14px;${r.urgent?'color:var(--danger);font-weight:500':''}">${r.title}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.tag} · ${r.category}${r.time?' · '+r.time:''}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
+  if (upcoming.length) {
+    html += `<div class="card" style="margin-bottom:12px">
+      <div class="card-title"><span style="background:var(--warn)"></span>이번달 다가오는 루틴</div>
+      ${upcoming.map(r => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-family:'Space Mono',monospace;font-size:12px;color:${r.urgent?'var(--danger)':'var(--warn)'};min-width:36px">D-${r.daysLeft}</div>
+          <div style="font-size:13px;flex:1;${r.urgent?'color:var(--danger)':''}">${r.title}</div>
+          <div style="font-size:11px;color:var(--text3)">${r.targetDay}일</div>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
+  // 루틴 섹션 삽입
+  let routineEl = document.getElementById('routine-section');
+  if (!routineEl) {
+    routineEl = document.createElement('div');
+    routineEl.id = 'routine-section';
+    const content = document.getElementById('sec-today');
+    const carryEl = document.getElementById('carry-section');
+    content.insertBefore(routineEl, carryEl.nextSibling);
+  }
+  routineEl.innerHTML = html;
+}
+
+// ===== PATCH renderToday =====
+const _origRenderToday = renderToday;
+function renderToday() {
+  renderCarryOver();
+  renderRoutineSection();
+  renderTaskList();
+  renderTodaySchedule();
+  renderHeader();
+}
+
+// ===== PATCH renderHeader for routine badges =====
+const _origRenderHeader = renderHeader;
+function renderHeader() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('hd-date').textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+  document.getElementById('hd-day').textContent = `${days[d.getDay()]}요일`;
+
+  const urgentProps = proposals.filter(p => p.status==='pending' && daysUntil(p.due) <= 7 && daysUntil(p.due) >= 0);
+  const unfinished = tasks.filter(t => !t.done && t.date < today);
+  const todayRoutines = getTodayRoutines();
+  const urgentUpcoming = getUpcomingRoutines().filter(r => r.daysLeft <= 2);
+
+  const row = document.getElementById('badge-row');
+  row.innerHTML = '';
+  if (urgentProps.length) row.innerHTML += `<span class="badge danger">⚡ 마감 ${urgentProps.length}건</span>`;
+  if (unfinished.length) row.innerHTML += `<span class="badge warn">↩ 미완료 ${unfinished.length}건</span>`;
+  if (urgentUpcoming.length) row.innerHTML += `<span class="badge warn">📅 D-3이내 ${urgentUpcoming.length}건</span>`;
+  const todayTasks = tasks.filter(t => t.date === today);
+  const doneCnt = todayTasks.filter(t=>t.done).length;
+  if (todayTasks.length) row.innerHTML += `<span class="badge">✓ ${doneCnt}/${todayTasks.length}</span>`;
+  if (todayRoutines.length) row.innerHTML += `<span class="badge" style="color:var(--accent2)">🔄 루틴 ${todayRoutines.length}개</span>`;
+}
+
 // ===== INIT =====
 document.getElementById('past-month-filter').value = today.slice(0,7);
 renderToday();
