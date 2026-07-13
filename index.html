@@ -34,16 +34,16 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 
 /* LAYOUT */
 #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
-#header { padding:16px 20px 12px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+#header { padding:12px 16px 10px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
 #header-top { display:flex; align-items:center; justify-content:space-between; }
 .app-logo { font-family:'Space Mono',monospace; font-size:18px; color:var(--accent); letter-spacing:-1px; }
 .header-date { font-size:12px; color:var(--text2); margin-top:4px; }
-.badge-row { display:flex; gap:8px; margin-top:8px; }
+.badge-row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
 .badge { font-size:11px; padding:3px 8px; border-radius:20px; background:var(--surface3); color:var(--text2); border:1px solid var(--border); }
 .badge.warn { background:#2A1F00; color:var(--warn); border-color:#3A2D00; }
 .badge.danger { background:#2A0000; color:var(--danger); border-color:#3A1010; }
 
-#content { flex:1; overflow-y:auto; overflow-x:hidden; padding:16px; padding-bottom:80px; }
+#content { flex:1; overflow-y:auto; overflow-x:hidden; padding:12px 14px; padding-bottom:80px; }
 #navbar { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:100; }
 .nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; padding:10px 4px 14px; gap:4px; background:none; border:none; color:var(--text3); font-family:'Noto Sans KR',sans-serif; font-size:10px; cursor:pointer; transition:color .2s; position:relative; }
 .nav-btn.active { color:var(--accent); }
@@ -105,12 +105,11 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 .cal-title { font-size:15px; font-weight:700; }
 .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
 .cal-day-name { text-align:center; font-size:11px; color:var(--text3); padding:4px 0; }
-.cal-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:13px; cursor:pointer; position:relative; flex-direction:column; gap:1px; }
+.cal-cell { display:flex; flex-direction:column; align-items:flex-start; border-radius:6px; font-size:13px; cursor:pointer; position:relative; padding:3px; min-height:52px; }
+.cal-cell.today { background:none; }
 .cal-cell.other-month { color:var(--text3); }
-.cal-cell.today { background:var(--accent); color:#000; font-weight:700; }
-.cal-cell.selected:not(.today) { background:var(--surface3); }
-.cal-cell.has-event::after { content:''; width:4px; height:4px; background:var(--accent2); border-radius:50%; position:absolute; bottom:3px; }
-.cal-cell.today.has-event::after { background:#000; }
+.cal-cell.selected:not(.today) { background:var(--surface3); border-radius:6px; }
+
 .cal-cell.sunday { color:var(--danger); }
 .cal-cell.saturday { color:#6B8EFF; }
 .cal-cell.today.sunday,.cal-cell.today.saturday { color:#000; }
@@ -193,10 +192,13 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 <div id="app">
   <div id="header">
     <div id="header-top">
-      <div class="app-logo">MY<br>PLANNER</div>
-      <div style="text-align:right">
-        <div id="hd-date" class="header-date"></div>
-        <div id="hd-day" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+      <div>
+        <div id="hd-date" style="font-size:20px;font-weight:700;color:var(--text)"></div>
+        <div id="hd-day" style="font-size:12px;color:var(--text2);margin-top:1px;"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="openAddSchedule()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text2);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">+ 일정</button>
+        <button onclick="openAddTask()" style="background:var(--accent);border:none;border-radius:8px;padding:7px 12px;color:#000;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">+ 할일</button>
       </div>
     </div>
     <div class="badge-row" id="badge-row"></div>
@@ -205,43 +207,48 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
   <div id="content">
     <!-- TODAY -->
     <div class="section active" id="sec-today">
+      <!-- 오늘 일정 요약 (맨 위) -->
+      <div id="today-schedule-banner"></div>
+      <!-- 루틴/이월 -->
+      <div id="routine-section"></div>
       <div id="carry-section" style="display:none"></div>
-      <div class="section-header">
-        <div class="section-title">오늘의 할일</div>
-        <button class="add-btn" onclick="openAddTask()">+ 추가</button>
+      <!-- 빠른 입력 -->
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="quick-task-input" class="form-input" placeholder="할일 빠르게 추가..." style="flex:1;padding:10px 12px;font-size:13px" onkeydown="if(event.key==='Enter')quickAddTask()" />
+        <button onclick="quickAddTask()" style="background:var(--accent);border:none;border-radius:var(--radius-sm);padding:10px 16px;color:#000;font-weight:700;cursor:pointer;font-size:13px;flex-shrink:0">추가</button>
+      </div>
+      <!-- 할일 목록 -->
+      <div class="section-header" style="margin-bottom:6px">
+        <div style="font-size:13px;color:var(--text2)">📋 오늘의 할일</div>
       </div>
       <div id="task-list"></div>
-      <div style="height:12px"></div>
-      <div class="section-header">
-        <div class="section-title">오늘 일정</div>
-      </div>
-      <div id="today-schedule-list"></div>
     </div>
 
     <!-- CALENDAR -->
     <div class="section" id="sec-calendar">
-      <div class="card">
-        <div class="cal-header">
-          <button class="cal-nav" onclick="calMove(-1)">◀</button>
-          <div class="cal-title" id="cal-title"></div>
-          <button class="cal-nav" onclick="calMove(1)">▶</button>
-        </div>
-        <div class="cal-grid" id="cal-grid"></div>
-      </div>
-      <div class="section-header">
-        <div class="section-title" id="cal-sel-label">일정</div>
-        <button class="add-btn" onclick="openAddSchedule()">+ 추가</button>
-      </div>
-      <div id="cal-event-list"></div>
-
-      <div style="height:12px"></div>
-      <div class="tabs" id="view-tabs">
+      <div class="tabs" id="view-tabs" style="margin-bottom:10px">
         <button class="tab active" onclick="switchCalView('month',this)">월간</button>
         <button class="tab" onclick="switchCalView('week',this)">주간</button>
         <button class="tab" onclick="switchCalView('cycle',this)">사이클</button>
       </div>
-      <div id="week-view" style="display:none;overflow-x:auto"></div>
-      <div id="cycle-view" style="display:none"></div>
+      <div id="month-view">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <button class="cal-nav" onclick="calMove(-1)">◀</button>
+          <div class="cal-title" id="cal-title" style="font-size:16px;font-weight:700"></div>
+          <button class="cal-nav" onclick="calMove(1)">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid" style="margin-bottom:0"></div>
+      </div>
+      <!-- 선택 날짜 일정 패널 -->
+      <div id="cal-day-panel" style="margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;min-height:60px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="section-title" id="cal-sel-label" style="font-size:14px">날짜를 선택하세요</div>
+          <button class="add-btn" onclick="openAddSchedule()">+ 추가</button>
+        </div>
+        <div id="cal-event-list"></div>
+      </div>
+      <div id="week-view" style="display:none;overflow-x:auto;margin-top:10px"></div>
+      <div id="cycle-view" style="display:none;margin-top:10px"></div>
     </div>
 
     <!-- PROPOSALS -->
@@ -659,7 +666,11 @@ function renderTaskList() {
   const todayTasks = tasks.filter(t => t.date === today).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   const el = document.getElementById('task-list');
   if (!todayTasks.length) { el.innerHTML='<div class="empty">오늘 할일이 없습니다</div>'; return; }
-  el.innerHTML = todayTasks.map(t=>`
+
+  const undone = todayTasks.filter(t => !t.done);
+  const done = todayTasks.filter(t => t.done);
+
+  const taskHTML = (t) => `
     <div class="task-item" onclick="toggleTask('${t.id}')">
       <div class="task-check ${t.done?'done':''}">
         <svg viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><polyline points="2,6 5,9 10,3"/></svg>
@@ -672,22 +683,39 @@ function renderTaskList() {
         </div>
       </div>
       <button onclick="event.stopPropagation();deleteTask('${t.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;font-size:16px">×</button>
-    </div>
-  `).join('');
+    </div>`;
+
+  let html = undone.map(taskHTML).join('');
+
+  if (done.length) {
+    html += `<div style="font-size:11px;color:var(--text3);padding:10px 0 4px;display:flex;align-items:center;gap:6px">
+      <span style="flex:1;height:1px;background:var(--border)"></span>
+      <span>완료 ${done.length}개</span>
+      <span style="flex:1;height:1px;background:var(--border)"></span>
+    </div>`;
+    html += done.map(taskHTML).join('');
+  }
+
+  el.innerHTML = html;
 }
 
-function renderTodaySchedule() {
+function renderTodayBanner() {
   const todaySch = getSchedulesForDate(today);
-  const el = document.getElementById('today-schedule-list');
-  if (!todaySch.length) { el.innerHTML='<div class="empty">오늘 일정이 없습니다</div>'; return; }
-  el.innerHTML = todaySch.map(s=>`
-    <div class="schedule-item ${s.type==='proposal'?'proposal':s.type==='personal'?'personal':''}">
-      <div class="schedule-info">
-        <div class="schedule-name">${s.title}</div>
-        <div class="schedule-meta">${s.time||'시간미정'} · ${s.type==='work'?'업무':s.type==='personal'?'개인':'제안서'}</div>
+  const el = document.getElementById('today-schedule-banner');
+  if (!todaySch.length) { el.innerHTML=''; return; }
+  const typeColor = { work:'var(--accent)', personal:'var(--accent2)', proposal:'var(--accent3)' };
+  const typeLabel = { work:'업무', personal:'개인', proposal:'제안서' };
+  el.innerHTML = `<div style="margin-bottom:12px">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:6px">📅 오늘 일정 (${todaySch.length}건)</div>
+    ${todaySch.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')).map(s=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:8px;margin-bottom:5px;border-left:3px solid ${typeColor[s.type]||'var(--accent)'}">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);min-width:38px">${s.time||'--:--'}</div>
+        <div style="flex:1;font-size:13px">${s.title}</div>
+        <div style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--surface3);color:var(--text3)">${typeLabel[s.type]||'업무'}</div>
+        <button onclick="deleteSchedule('${s.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px">×</button>
       </div>
-    </div>
-  `).join('');
+    `).join('')}
+  </div>`;
 }
 
 function toggleTask(id) {
@@ -711,24 +739,32 @@ function renderCalGrid() {
   const first = new Date(y,m,1).getDay();
   const last = new Date(y,m+1,0).getDate();
   const days = ['일','월','화','수','목','금','토'];
-  let html = days.map((d,i)=>`<div class="cal-day-name ${i===0?'':''}${i===6?'':''}" style="${i===0?'color:var(--danger)':i===6?'color:#6B8EFF':''}">${d}</div>`).join('');
+  let html = days.map((d,i)=>`<div class="cal-day-name" style="${i===0?'color:var(--danger)':i===6?'color:#6B8EFF':''}">${d}</div>`).join('');
   for(let i=0;i<first;i++) {
-    const d = new Date(y,m,-first+i+1);
-    html += `<div class="cal-cell other-month">${d.getDate()}</div>`;
+    html += `<div class="cal-cell other-month"></div>`;
   }
   for(let d=1;d<=last;d++) {
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow = new Date(y,m,d).getDay();
     const isToday = dateStr===today;
     const isSel = dateStr===selectedDate;
-    const hasEv = getSchedulesForDate(dateStr).length > 0 || tasks.filter(t=>t.date===dateStr).length > 0;
+    const evs = getSchedulesForDate(dateStr);
+    const dayTasks = tasks.filter(t=>t.date===dateStr&&!t.done);
     const cls = [
       isToday?'today':'',
       isSel&&!isToday?'selected':'',
-      hasEv?'has-event':'',
       dow===0?'sunday':dow===6?'saturday':''
     ].filter(Boolean).join(' ');
-    html += `<div class="cal-cell ${cls}" onclick="selectDate('${dateStr}')">${d}</div>`;
+    // mini event labels (max 2)
+    const allItems = [...evs.map(e=>({text:e.title,type:e.type})), ...dayTasks.map(t=>({text:t.title,type:'task'}))];
+    const miniItems = allItems.slice(0,2);
+    const moreCount = allItems.length - 2;
+    const miniHTML = miniItems.map(item=>`<div style="font-size:9px;line-height:1.2;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:1px 2px;border-radius:2px;background:${item.type==='personal'?'rgba(71,255,212,.15)':item.type==='proposal'?'rgba(255,107,71,.15)':item.type==='task'?'rgba(232,255,71,.1)':'rgba(255,255,255,.08)'};color:${item.type==='personal'?'var(--accent2)':item.type==='proposal'?'var(--accent3)':item.type==='task'?'var(--accent)':'var(--text2)'};margin-top:1px">${item.text}</div>`).join('');
+    const moreHTML = moreCount>0?`<div style="font-size:9px;color:var(--text3)">+${moreCount}</div>`:'';
+    html += `<div class="cal-cell ${cls}" onclick="selectDate('${dateStr}')" style="flex-direction:column;align-items:flex-start;padding:3px 3px 2px;height:auto;min-height:52px;aspect-ratio:unset">
+      <div style="font-size:13px;font-weight:${isToday?'700':'400'};align-self:${isToday?'center':'flex-start'};${isToday?'background:var(--accent);color:#000;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 2px':''}">${d}</div>
+      ${miniHTML}${moreHTML}
+    </div>`;
   }
   document.getElementById('cal-grid').innerHTML = html;
 }
@@ -741,19 +777,42 @@ function selectDate(d) {
 
 function renderCalEvents() {
   const label = document.getElementById('cal-sel-label');
-  label.textContent = selectedDate===today ? '오늘 일정' : selectedDate + ' 일정';
+  const d = new Date(selectedDate);
+  const days = ['일','월','화','수','목','금','토'];
+  const mm = d.getMonth()+1, dd = d.getDate(), dow = days[d.getDay()];
+  label.textContent = selectedDate===today ? `오늘 (${mm}/${dd} ${dow})` : `${mm}월 ${dd}일 (${dow})`;
+
   const evs = getSchedulesForDate(selectedDate);
+  const dayTasks = tasks.filter(t=>t.date===selectedDate);
   const el = document.getElementById('cal-event-list');
-  if (!evs.length) { el.innerHTML='<div class="empty">이 날 일정이 없습니다</div>'; return; }
-  el.innerHTML = evs.map(s=>`
-    <div class="schedule-item ${s.type==='proposal'?'proposal':s.type==='personal'?'personal':''}">
-      <div class="schedule-info">
-        <div class="schedule-name">${s.title}</div>
-        <div class="schedule-meta">${s.time||'시간미정'} · ${s.memo||''}</div>
+
+  let html = '';
+  if (!evs.length && !dayTasks.length) {
+    el.innerHTML='<div class="empty" style="padding:14px 0;font-size:12px">일정이 없습니다. + 추가를 눌러보세요</div>';
+    return;
+  }
+  if (evs.length) {
+    html += evs.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')).map(s=>`
+      <div class="schedule-item ${s.type==='proposal'?'proposal':s.type==='personal'?'personal':''}">
+        <div class="schedule-info">
+          <div class="schedule-name">${s.title}</div>
+          <div class="schedule-meta">${s.time||'시간미정'}${s.memo?' · '+s.memo:''}</div>
+        </div>
+        <button class="schedule-del" onclick="deleteSchedule('${s.id}')">×</button>
       </div>
-      <button class="schedule-del" onclick="deleteSchedule('${s.id}')">×</button>
-    </div>
-  `).join('');
+    `).join('');
+  }
+  if (dayTasks.length) {
+    html += `<div style="font-size:11px;color:var(--text3);margin:8px 0 4px">할일</div>`;
+    html += dayTasks.map(t=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid ${t.done?'var(--accent)':'var(--border)'};background:${t.done?'var(--accent)':'none'};flex-shrink:0"></div>
+        <div style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''};flex:1">${t.title}</div>
+        <div style="font-size:10px;color:var(--text3)">${t.category}</div>
+      </div>
+    `).join('');
+  }
+  el.innerHTML = html;
 }
 
 function getSchedulesForDate(dateStr) {
@@ -1030,11 +1089,21 @@ function saveTask() {
   save(); closeModal('modal-task'); renderToday();
 }
 
+function quickAddTask() {
+  const inp = document.getElementById('quick-task-input');
+  const title = inp.value.trim();
+  if (!title) return;
+  tasks.push({ id:uid(), title, time:'', category:'개인', date:today, done:false });
+  inp.value = '';
+  save(); renderToday();
+}
+
 function openAddSchedule() {
   document.getElementById('sch-title').value='';
   document.getElementById('sch-date').value=selectedDate||today;
   document.getElementById('sch-time').value='';
   document.getElementById('sch-memo').value='';
+  // pre-select date on calendar if in calendar tab
   openModal('modal-schedule');
 }
 function saveSchedule() {
@@ -1097,10 +1166,7 @@ function savePast() {
 const ROUTINES = {
   daily: [
     // 요일별: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
-    { title: '예준이 배구 라이딩', days: [1,2,4,5], category: '개인', time: '' },
-    { title: '푸쉬업 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
-    { title: '스쿼트 30개 이상', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
-    { title: '철봉 매달리기', days: [1,2,3,4,5,6,0], category: '건강', time: '' },
+
   ],
   weekly: [
     { title: '현대샵 제안서 작성', day: 1, category: '업무', note: '매주 월요일' },
@@ -1284,38 +1350,35 @@ function renderRoutineSection() {
   routineEl.innerHTML = html;
 }
 
-// ===== PATCH renderToday =====
-const _origRenderToday = renderToday;
+// ===== RENDER TODAY =====
 function renderToday() {
-  renderCarryOver();
+  renderTodayBanner();
   renderRoutineSection();
+  renderCarryOver();
   renderTaskList();
-  renderTodaySchedule();
   renderHeader();
 }
 
-// ===== PATCH renderHeader for routine badges =====
-const _origRenderHeader = renderHeader;
+// ===== RENDER HEADER =====
 function renderHeader() {
   const d = new Date();
   const days = ['일','월','화','수','목','금','토'];
-  document.getElementById('hd-date').textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
-  document.getElementById('hd-day').textContent = `${days[d.getDay()]}요일`;
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('hd-date').textContent = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  document.getElementById('hd-day').textContent = `${d.getFullYear()}년 · ${months[d.getMonth()]}`;
 
   const urgentProps = proposals.filter(p => p.status==='pending' && daysUntil(p.due) <= 7 && daysUntil(p.due) >= 0);
   const unfinished = tasks.filter(t => !t.done && t.date < today);
-  const todayRoutines = getTodayRoutines();
   const urgentUpcoming = getUpcomingRoutines().filter(r => r.daysLeft <= 2);
+  const todayTasks = tasks.filter(t => t.date === today);
+  const doneCnt = todayTasks.filter(t=>t.done).length;
 
   const row = document.getElementById('badge-row');
   row.innerHTML = '';
   if (urgentProps.length) row.innerHTML += `<span class="badge danger">⚡ 마감 ${urgentProps.length}건</span>`;
   if (unfinished.length) row.innerHTML += `<span class="badge warn">↩ 미완료 ${unfinished.length}건</span>`;
-  if (urgentUpcoming.length) row.innerHTML += `<span class="badge warn">📅 D-3이내 ${urgentUpcoming.length}건</span>`;
-  const todayTasks = tasks.filter(t => t.date === today);
-  const doneCnt = todayTasks.filter(t=>t.done).length;
+  if (urgentUpcoming.length) row.innerHTML += `<span class="badge warn">📅 D-2이내 ${urgentUpcoming.length}건</span>`;
   if (todayTasks.length) row.innerHTML += `<span class="badge">✓ ${doneCnt}/${todayTasks.length}</span>`;
-  if (todayRoutines.length) row.innerHTML += `<span class="badge" style="color:var(--accent2)">🔄 루틴 ${todayRoutines.length}개</span>`;
 }
 
 // ===== INIT =====
